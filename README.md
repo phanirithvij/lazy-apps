@@ -60,3 +60,12 @@ self.packages.${system}.lazy-apps.override {
 will make the `hello` and `gpsprune` commands available in the shell.
 The GpsPrune desktop item means that you can also start it through
 your desktop manager.
+
+## Future Improvements
+
+One can imagine additional features and improvements:
+
+- Support for application icons.
+
+- When realizing a package we could place it in a "lazy-apps" profile
+  so that it won't get garbage collected.
