@@ -17,5 +17,46 @@ in your system/user profile and packages run through something like
 
 ## Usage
 
-Lazy Apps is currently made available as a Nix Flake. See the example
-package in the Flake to get an idea about how it is used.
+Lazy Apps is currently made available as a Nix Flake.
+
+Add
+
+``` nix
+lazy-apps = {
+  url = "sourcehut:~rycee/lazy-apps";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
+```
+
+to your Flake inputs. You can then make use of the `lazy-apps`
+package. For example, installing
+
+``` nix
+self.packages.${system}.lazy-apps.override {
+  apps = [
+    { pkg = pkgs.hello; }
+    {
+      pkg = pkgs.gpsprune;
+      exe = "gpsprune";
+      desktopItem = pkgs.makeDesktopItem {
+        name = "gpsprune";
+        exec = "gpsprune %F";
+        icon = "gpsprune";
+        desktopName = "GpsPrune";
+        genericName = "GPS Data Editor";
+        comment = "Application for viewing, editing and converting GPS coordinate data";
+        categories = [ "Education" "Geoscience" ];
+        mimeTypes = [
+          "application/gpx+xml"
+          "application/vnd.google-earth.kml+xml"
+          "application/vnd.google-earth.kmz"
+        ];
+      };
+    }
+  ];
+}
+```
+
+will make the `hello` and `gpsprune` commands available in the shell.
+The GpsPrune desktop item means that you can also start it through
+your desktop manager.
