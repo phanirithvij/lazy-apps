@@ -82,3 +82,6 @@ One can imagine additional features and improvements:
 
 - When realizing a package we could place it in a "lazy-apps" profile
   so that it won't get garbage collected.
+
+- A tool that, given a package, can generate corresponding app
+  attribute sets.
