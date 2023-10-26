@@ -11,50 +11,35 @@
       packages = forAllSystems (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+
           lib = pkgs.lib;
+
+          mkExeName =  pkg:
+            if pkg == null
+              then null else pkg.meta.mainProgram or (lib.getName pkg);
+
         in {
-          lazy-apps = pkgs.makeOverridable ({ apps ? [ ] }:
-            pkgs.runCommand "lazy-apps" (let
-              mkExePath = { pkg, exe ? null, ... }:
+          lazy-app = pkgs.makeOverridable ({ pkg ? null, exe ? mkExeName pkg, desktopItem ? null }:
+            pkgs.runCommand "lazy-${exe}" (let
+              exePath =
                 if exe != null then
                   "${lib.getBin pkg}/bin/${exe}"
                 else
                   lib.getExe pkg;
 
-              mkExeName = { pkg, exe ? null, ... }:
-                if exe != null then
-                  exe
-                else
-                  pkg.meta.mainProgram or (lib.getName pkg);
-
-              mkEntry = app: ''
-                ${mkExeName app})
-                  path='${builtins.unsafeDiscardStringContext (mkExePath app)}'
-                  ;;
-              '';
-
               notify-send = lib.getExe pkgs.libnotify;
             in {
               nativeBuildInputs = [ pkgs.copyDesktopItems ];
 
-              desktopItems = lib.filter (d: d != null)
-                (map (app: app.desktopItem or null) apps);
+              desktopItems = lib.optional (desktopItem != null) desktopItem;
 
               script = ''
                 #!${pkgs.runtimeShell}
 
                 set -euo pipefail
 
-                app=$(basename "$0")
-                path=""
-
-                case $app in
-                ${lib.concatMapStringsSep "\n" mkEntry apps}
-                    *)
-                        echo "Unknown app $app"
-                        exit 1
-                        ;;
-                esac
+                app='${exe}'
+                path='${builtins.unsafeDiscardStringContext exePath}'
 
                 if [[ ! -e $path ]]; then
                     noteId=$(${notify-send} -t 0 -p "Realizing $app …")
@@ -69,26 +54,23 @@
                     exec $path "$@"
                 fi
               '';
-              exes = toString (map mkExeName apps);
+              exeName = exe;
               passAsFile = [ "script" ];
             }) ''
               runHook preInstall
-
-              mkdir -p "$out/bin" "$out/libexec"
-              install -m755 "$scriptPath" "$out/libexec/lazy-apps"
-              for exe in $exes; do
-                ln -sv "$out/libexec/lazy-apps" "$out/bin/$exe"
-              done
-
+              install -Dm755 "$scriptPath" "$out/bin/$exeName"
               runHook postInstall
             '') { };
 
-          example = self.packages.${system}.lazy-apps.override {
-            apps = [
-              { pkg = pkgs.hello; }
-              {
+          examples = let
+            lazy-app = self.packages.${system}.lazy-app;
+          in pkgs.symlinkJoin {
+            name = "lazy-apps-examples";
+            paths = [
+              (lazy-app.override { pkg = pkgs.hello; })
+
+              (lazy-app.override {
                 pkg = pkgs.gpsprune;
-                exe = "gpsprune";
                 desktopItem = pkgs.makeDesktopItem {
                   name = "gpsprune";
                   exec = "gpsprune %F";
@@ -104,7 +86,7 @@
                     "application/vnd.google-earth.kmz"
                   ];
                 };
-              }
+              })
             ];
           };
         });
