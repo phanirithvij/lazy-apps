@@ -20,7 +20,7 @@
 
         in {
           lazy-app = pkgs.makeOverridable ({ pkg ? null, exe ? mkExeName pkg, desktopItem ? null }:
-            pkgs.runCommand "lazy-${exe}" (let
+            pkgs.runCommand "lazy-${exe}-${lib.getVersion pkg}" (let
               exePath =
                 if exe != null then
                   "${lib.getBin pkg}/bin/${exe}"
