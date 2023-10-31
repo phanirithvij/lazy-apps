@@ -71,21 +71,19 @@
               (lazy-app.override { pkg = pkgs.hello; })
 
               (lazy-app.override {
-                pkg = pkgs.gpsprune;
+                pkg = pkgs.stellarium;
                 desktopItem = pkgs.makeDesktopItem {
-                  name = "gpsprune";
-                  exec = "gpsprune %F";
-                  icon = "gpsprune";
-                  desktopName = "GpsPrune";
-                  genericName = "GPS Data Editor";
-                  comment =
-                    "Application for viewing, editing and converting GPS coordinate data";
-                  categories = [ "Education" "Geoscience" ];
-                  mimeTypes = [
-                    "application/gpx+xml"
-                    "application/vnd.google-earth.kml+xml"
-                    "application/vnd.google-earth.kmz"
-                  ];
+                  name = "stellarium";
+                  type = "Application";
+                  desktopName = "Stellarium";
+                  genericName = "Desktop planetarium";
+                  exec = "stellarium --startup-script=%f";
+                  icon = "stellarium";
+                  startupNotify = false;
+                  terminal = false;
+                  categories = [ "Astronomy" "Education" "Science" ];
+                  comment = "Planetarium";
+                  mimeTypes = [ "application/x-stellarium-script" ];
                 };
               })
             ];
