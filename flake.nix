@@ -21,7 +21,7 @@
         in {
           lazy-app = pkgs.makeOverridable
             ({ pkg ? pkgs.hello, exe ? mkExeName pkg, desktopItem ? null }:
-              pkgs.runCommand "lazy-${exe}-${lib.getVersion pkg}" (let
+              pkgs.runCommand "lazy-${exe}" (let
                 exePath = if exe != null then
                   "${lib.getBin pkg}/bin/${exe}"
                 else
@@ -29,6 +29,8 @@
 
                 notify-send = lib.getExe pkgs.libnotify;
               in {
+                pname = lib.getName pkg;
+                version = lib.getVersion pkg;
                 nativeBuildInputs = [ pkgs.copyDesktopItems ];
 
                 desktopItems = lib.optional (desktopItem != null) desktopItem;
