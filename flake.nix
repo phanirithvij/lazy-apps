@@ -1,93 +1,58 @@
 {
   description = "Lazy Apps";
 
-  inputs = { nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable"; };
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    pre-commit-hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
 
-  outputs = { self, nixpkgs }:
-    let forAllSystems = nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed;
-    in {
-      packages = forAllSystems (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      pre-commit-hooks,
+    }:
+    let
+      forAllSystems = nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed;
+    in
+    {
+      packages = forAllSystems (
+        system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+        in
+        (import ./.).mkLazyApps { inherit pkgs; }
+      );
 
-          lib = pkgs.lib;
+      checks = forAllSystems (
+        system:
+        if system != "x86_64-linux" then
+          { }
+        else
+          let
+            pkgs = nixpkgs.legacyPackages.${system};
+            src = pkgs.nix-gitignore.gitignoreSource [ ] ./.;
+            pre-commit-check = pre-commit-hooks.lib.${system}.run {
+              inherit src;
+              hooks = {
+                nixfmt-rfc-style.enable = true;
+              };
+            };
+          in
+          {
+            inherit pre-commit-check;
+          }
+      );
 
-          mkExeName = pkg:
-            if pkg == null then
-              null
-            else
-              pkg.meta.mainProgram or (lib.getName pkg);
+      devShell = forAllSystems (
+        system:
+        nixpkgs.legacyPackages.${system}.mkShell {
+          inherit (self.checks.${system}.pre-commit-check) shellHook;
+        }
+      );
 
-        in {
-          lazy-app = pkgs.makeOverridable
-            ({ pkg ? pkgs.hello, exe ? mkExeName pkg, desktopItem ? null }:
-              pkgs.runCommand "lazy-${exe}" (let
-                exePath = if exe != null then
-                  "${lib.getBin pkg}/bin/${exe}"
-                else
-                  lib.getExe pkg;
-
-                notify-send = lib.getExe pkgs.libnotify;
-              in {
-                pname = lib.getName pkg;
-                version = lib.getVersion pkg;
-                nativeBuildInputs = [ pkgs.copyDesktopItems ];
-
-                desktopItems = lib.optional (desktopItem != null) desktopItem;
-
-                script = ''
-                  #!${pkgs.runtimeShell}
-
-                  set -euo pipefail
-
-                  app='${exe}'
-                  path='${builtins.unsafeDiscardStringContext exePath}'
-
-                  if [[ ! -e $path ]]; then
-                      noteId=$(${notify-send} -t 0 -p "Realizing $app …")
-                      trap "${notify-send} -r '$noteId' 'Canceled realization of $app'" EXIT
-                      SECONDS=0
-                      nix-store --realise "$path" > /dev/null 2>&1
-                      trap - EXIT
-                      ${notify-send} -r "$noteId" "Realized $app in $SECONDS s"
-                  fi
-
-                  if [[ -e $path ]]; then
-                      exec $path "$@"
-                  fi
-                '';
-                exeName = exe;
-                passAsFile = [ "script" ];
-              }) ''
-                runHook preInstall
-                install -Dm755 "$scriptPath" "$out/bin/$exeName"
-                runHook postInstall
-              '') { };
-
-          examples = let lazy-app = self.packages.${system}.lazy-app;
-          in pkgs.symlinkJoin {
-            name = "lazy-apps-examples";
-            paths = [
-              (lazy-app.override { pkg = pkgs.hello; })
-
-              (lazy-app.override {
-                pkg = pkgs.stellarium;
-                desktopItem = pkgs.makeDesktopItem {
-                  name = "stellarium";
-                  type = "Application";
-                  desktopName = "Stellarium";
-                  genericName = "Desktop planetarium";
-                  exec = "stellarium --startup-script=%f";
-                  icon = "stellarium";
-                  startupNotify = false;
-                  terminal = false;
-                  categories = [ "Astronomy" "Education" "Science" ];
-                  comment = "Planetarium";
-                  mimeTypes = [ "application/x-stellarium-script" ];
-                };
-              })
-            ];
-          };
-        });
     };
 }
