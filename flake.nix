@@ -20,11 +20,7 @@
     in
     {
       packages = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        (import ./.).mkLazyApps { inherit pkgs; }
+        system: (import ./.).mkLazyApps { pkgs = nixpkgs.legacyPackages.${system}; }
       );
 
       checks = forAllSystems (
