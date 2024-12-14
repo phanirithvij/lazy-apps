@@ -20,7 +20,8 @@ incompatible ways.
 
 ## Usage
 
-Lazy Apps is currently made available as a Nix Flake.
+Lazy Apps is currently made available as a Nix Flake or as a plain old
+`default.nix`.
 
 Add
 
@@ -60,6 +61,13 @@ lazy-apps.packages.${system}.lazy-app.override {
     ];
   };
 }
+```
+
+The equivalent for plain old Nix is to do
+
+```nix
+let lazy-app = (import <lazy-apps>).mkLazyApps { inherit pkgs; }
+in lazy-app.override { pkg = pkgs.hello; }
 ```
 
 The fields currently available for override are:
