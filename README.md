@@ -87,7 +87,8 @@ The fields currently available for override are:
 
 One can imagine additional features and improvements:
 
-- Support for application icons.
+- Support for application icons. Bonus point if the application icon
+  is different before and after the wrapped package is realized.
 
 - When realizing a package we could place it in a "lazy-apps" profile
   so that it won't get garbage collected.
