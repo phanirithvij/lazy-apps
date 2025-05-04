@@ -26,6 +26,8 @@
 
               desktopItems = lib.optional (desktopItem != null) desktopItem;
 
+              meta.mainProgram = exe;
+
               script = ''
                 #!${pkgs.runtimeShell}
 
