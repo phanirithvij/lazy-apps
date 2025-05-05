@@ -16,6 +16,7 @@
           (
             let
               exePath = if exe != null then lib.getExe' pkg exe else lib.getExe pkg;
+              drvPath = builtins.unsafeDiscardStringContext pkg.drvPath;
 
               notify-send = lib.getExe pkgs.libnotify;
             in
@@ -35,6 +36,7 @@
 
                 app='${exe}'
                 path='${builtins.unsafeDiscardStringContext exePath}'
+                drv='${drvPath}'
 
                 if [[ -e $path ]]; then
                     exec $path "$@"
@@ -42,7 +44,7 @@
                     noteId=$(${notify-send} -t 0 -p "Realizing $app …")
                     trap "${notify-send} -r '$noteId' 'Canceled realization of $app'" EXIT
                     SECONDS=0
-                    nix-store --realise "$path" > /dev/null 2>&1
+                    nix-store --realise "$path" > /dev/null 2>&1 || nix-store --realise "$drv" > /dev/null 2>&1
                     trap - EXIT
                     ${notify-send} -r "$noteId" "Realized $app in $SECONDS s"
                     exec $path "$@"
