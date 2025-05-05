@@ -37,16 +37,15 @@
                 app='${exe}'
                 path='${builtins.unsafeDiscardStringContext exePath}'
 
-                if [[ ! -e $path ]]; then
+                if [[ -e $path ]]; then
+                    exec $path "$@"
+                else
                     noteId=$(${notify-send} -t 0 -p "Realizing $app …")
                     trap "${notify-send} -r '$noteId' 'Canceled realization of $app'" EXIT
                     SECONDS=0
                     nix-store --realise "$path" > /dev/null 2>&1
                     trap - EXIT
                     ${notify-send} -r "$noteId" "Realized $app in $SECONDS s"
-                fi
-
-                if [[ -e $path ]]; then
                     exec $path "$@"
                 fi
               '';
