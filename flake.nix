@@ -23,6 +23,8 @@
         system: (import ./.).mkLazyApps { pkgs = nixpkgs.legacyPackages.${system}; }
       );
 
+      overlays.default = import ./overlay.nix;
+
       checks = forAllSystems (
         system:
         if system != "x86_64-linux" then
