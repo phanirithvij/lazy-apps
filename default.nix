@@ -29,6 +29,7 @@
               desktopItems = desktopItems ++ lib.optional (desktopItem != null) desktopItem;
 
               meta.mainProgram = exe;
+              passthru.pkg = pkg;
 
               script = ''
                 #!${pkgs.runtimeShell}
