@@ -11,6 +11,7 @@
           pkg ? pkgs.hello,
           exe ? mkExeName pkg,
           desktopItem ? null,
+          debugLogs ? false,
         }:
         pkgs.runCommand "lazy-${exe}"
           (
@@ -19,6 +20,7 @@
               drvPath = builtins.unsafeDiscardStringContext pkg.drvPath;
 
               notify-send = lib.getExe pkgs.libnotify;
+              debug = lib.optionalString (!debugLogs) "> /dev/null 2>&1";
             in
             {
               pname = lib.getName pkg;
@@ -33,6 +35,7 @@
               script = ''
                 #!${pkgs.runtimeShell}
 
+                ${lib.optionalString debugLogs "set -x"}
                 set -euo pipefail
 
                 app='${exe}'
@@ -45,7 +48,8 @@
                     noteId=$(${notify-send} -t 0 -p "Realizing $app …")
                     trap "${notify-send} -r '$noteId' 'Canceled realization of $app'" EXIT
                     SECONDS=0
-                    nix-store --realise "$path" > /dev/null 2>&1 || nix-store --realise "$drv" > /dev/null 2>&1
+                    nix-store --realise "$path"${debug} ||\
+                    nix-store --realise "$drv"${debug}
                     trap - EXIT
                     ${notify-send} -r "$noteId" "Realized $app in $SECONDS s"
                     exec $path "$@"
