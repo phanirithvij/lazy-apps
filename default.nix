@@ -10,7 +10,8 @@
         {
           pkg ? pkgs.hello,
           exe ? mkExeName pkg,
-          desktopItem ? null,
+          desktopItem ? null, # Deprecate desktopItem?
+          desktopItems ? [ ],
         }:
         pkgs.runCommand "lazy-${exe}"
           (
@@ -24,7 +25,7 @@
               version = lib.getVersion pkg;
               nativeBuildInputs = [ pkgs.copyDesktopItems ];
 
-              desktopItems = lib.optional (desktopItem != null) desktopItem;
+              desktopItems = desktopItems ++ lib.optional (desktopItem != null) desktopItem;
 
               meta.mainProgram = exe;
 
