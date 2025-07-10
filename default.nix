@@ -8,11 +8,26 @@
 
       lazy-app = lib.makeOverridable (
         {
-          pkg ? pkgs.hello,
-          exe ? mkExeName pkg,
           desktopItems ? [ ],
           debugLogs ? false,
-        }:
+          ...
+        }@overrideArgs:
+        let
+          _pkg = overrideArgs.pkg or pkgs.hello;
+          pkg =
+            if _pkg ? override then
+              _pkg.override (
+                removeAttrs overrideArgs [
+                  "pkg" # Hope we don't conflict with some nixpkgs override value `rg ' pkg (,|\?)'` in nixpkgs
+                  "exe"
+                  "desktopItems"
+                  "debugLogs"
+                ]
+              )
+            else
+              _pkg;
+          exe = overrideArgs.exe or (mkExeName pkg);
+        in
         pkgs.runCommand "lazy-${exe}"
           (
             let
@@ -30,7 +45,9 @@
               inherit desktopItems;
 
               meta.mainProgram = exe;
-              passthru.pkg = pkg;
+              passthru = pkg.passthru // {
+                inherit pkg;
+              };
 
               script = ''
                 #!${pkgs.runtimeShell}
