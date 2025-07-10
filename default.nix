@@ -10,7 +10,6 @@
         {
           pkg ? pkgs.hello,
           exe ? mkExeName pkg,
-          desktopItem ? null, # Deprecate desktopItem?
           desktopItems ? [ ],
           debugLogs ? false,
         }:
@@ -28,7 +27,7 @@
               version = lib.getVersion pkg;
               nativeBuildInputs = [ pkgs.copyDesktopItems ];
 
-              desktopItems = desktopItems ++ lib.optional (desktopItem != null) desktopItem;
+              inherit desktopItems;
 
               meta.mainProgram = exe;
               passthru.pkg = pkg;
@@ -77,23 +76,25 @@
 
           (lazy-app.override {
             pkg = pkgs.stellarium;
-            desktopItem = pkgs.makeDesktopItem {
-              name = "stellarium";
-              type = "Application";
-              desktopName = "Stellarium";
-              genericName = "Desktop planetarium";
-              exec = "stellarium --startup-script=%f";
-              icon = "stellarium";
-              startupNotify = false;
-              terminal = false;
-              categories = [
-                "Astronomy"
-                "Education"
-                "Science"
-              ];
-              comment = "Planetarium";
-              mimeTypes = [ "application/x-stellarium-script" ];
-            };
+            desktopItems = [
+              (pkgs.makeDesktopItem {
+                name = "stellarium";
+                type = "Application";
+                desktopName = "Stellarium";
+                genericName = "Desktop planetarium";
+                exec = "stellarium --startup-script=%f";
+                icon = "stellarium";
+                startupNotify = false;
+                terminal = false;
+                categories = [
+                  "Astronomy"
+                  "Education"
+                  "Science"
+                ];
+                comment = "Planetarium";
+                mimeTypes = [ "application/x-stellarium-script" ];
+              })
+            ];
           })
         ];
       };
