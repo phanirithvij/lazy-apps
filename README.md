@@ -66,7 +66,7 @@ lazy-apps.packages.${system}.lazy-app.override {
 The equivalent for plain old Nix is to do
 
 ```nix
-let lazy-app = (import <lazy-apps>).mkLazyApps { inherit pkgs; }
+let lazy-app = ((import <lazy-apps>).mkLazyApps { inherit pkgs; }).lazy-app;
 in lazy-app.override { pkg = pkgs.hello; }
 ```
 
