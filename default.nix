@@ -6,10 +6,79 @@
 
       mkExeName = pkg: if pkg == null then null else pkg.meta.mainProgram or (lib.getName pkg);
 
+      notify-send = lib.getExe pkgs.libnotify;
+
+      makeGcDesktopItem =
+        {
+          exe,
+          exePath,
+          desktopItem,
+          addGcDesktopAction,
+          addLazyAppCategory,
+        }:
+        let
+          gcScript = pkgs.writeShellScriptBin "del-${exe}" ''
+            app=${exe}
+            noteId=$(${notify-send} -t 0 -p "Deleting $app …")
+            trap "${notify-send} -r '$noteId' 'Failed to delete $app'" EXIT
+            SECONDS=0
+            space=$(nix-store --delete ${exePath} | cut -d',' -f2 | cut -d' ' -f2,3)
+            trap - EXIT
+            ${notify-send} -r "$noteId" "Deleted $app in ''${SECONDS}s. Freed up $space"
+          '';
+          item =
+            if addGcDesktopAction || addLazyAppCategory then
+              (pkgs.runCommand "lazy-app-desktop-file-${exe}"
+                {
+                  nativeBuildInputs = with pkgs; [
+                    gnused
+                    crudini
+                  ];
+                }
+                ''
+                  mkdir $out
+                  outfile=$out/${exe}.desktop
+                  cp --no-preserve=all ${desktopItem} $outfile
+                  ${lib.optionalString addGcDesktopAction
+                    #bash
+                    ''
+                      if ! crudini --get $outfile "Desktop Entry" "Actions" &>/dev/null; then
+                        crudini --set $outfile "Desktop Entry" "Actions" "GC;"
+                      else
+                        sed -i 's#^Actions=#Actions=GC;#g' $outfile
+                      fi
+                      echo >>$outfile
+                      cat << EOF >>$outfile
+                      [Desktop Action GC]
+                      Name=Garbage Collect
+                      Exec=${lib.getExe gcScript}
+                      EOF
+                    ''
+                  }
+                  ${lib.optionalString addLazyAppCategory
+                    #bash
+                    ''
+                      if ! crudini --get $outfile "Desktop Entry" "Categories" &>/dev/null; then
+                        crudini --set $outfile "Desktop Entry" "Categories" "LazyApps;"
+                      else
+                        sed -i 's#^Categories=#Categories=LazyApps;#g' $outfile
+                      fi
+                    ''
+                  }
+                ''
+              )
+              + "/${exe}.desktop"
+            else
+              desktopItem;
+        in
+        item;
+
       lazy-app = lib.makeOverridable (
         {
-          desktopItems ? [ ],
           debugLogs ? false,
+          desktopItems ? [ ],
+          addGcDesktopAction ? true,
+          addLazyAppCategory ? true,
           ...
         }@overrideArgs:
         let
@@ -20,8 +89,10 @@
                 removeAttrs overrideArgs [
                   "pkg" # Hope we don't conflict with some nixpkgs override value `rg ' pkg (,|\?)'` in nixpkgs
                   "exe"
-                  "desktopItems"
                   "debugLogs"
+                  "desktopItems"
+                  "addGcDesktopAction"
+                  "addLazyAppCategory"
                 ]
               )
             else
@@ -31,18 +102,31 @@
         pkgs.runCommand "lazy-${exe}"
           (
             let
-              exePath = if exe != null then lib.getExe' pkg exe else lib.getExe pkg;
+              exePath = builtins.unsafeDiscardStringContext (
+                if exe != null then lib.getExe' pkg exe else lib.getExe pkg
+              );
               drvPath = builtins.unsafeDiscardStringContext pkg.drvPath;
 
-              notify-send = lib.getExe pkgs.libnotify;
               debug = lib.optionalString (!debugLogs) "> /dev/null 2>&1";
+              desktopItems' = map (
+                desktopItem:
+                makeGcDesktopItem {
+                  inherit
+                    exe
+                    exePath
+                    desktopItem
+                    addGcDesktopAction
+                    addLazyAppCategory
+                    ;
+                }
+              ) desktopItems;
             in
             {
               pname = lib.getName pkg;
               version = lib.getVersion pkg;
               nativeBuildInputs = [ pkgs.copyDesktopItems ];
 
-              inherit desktopItems;
+              desktopItems = desktopItems';
 
               meta.mainProgram = exe;
               passthru = pkg.passthru // {
@@ -56,7 +140,7 @@
                 set -euo pipefail
 
                 app='${exe}'
-                path='${builtins.unsafeDiscardStringContext exePath}'
+                path='${exePath}'
                 drv='${drvPath}'
 
                 if [[ -e $path ]]; then
