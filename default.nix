@@ -2,7 +2,7 @@
   mkLazyApps =
     { pkgs }:
     let
-      lib = pkgs.lib;
+      inherit (pkgs) lib;
 
       mkExeName = pkg: if pkg == null then null else pkg.meta.mainProgram or (lib.getName pkg);
 

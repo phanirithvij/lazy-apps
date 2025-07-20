@@ -25,6 +25,10 @@
 
       overlays.default = import ./overlay.nix;
 
+      nixosModules.default = import ./modules/nixos.nix;
+
+      homeModules.default = import ./modules/hm.nix;
+
       checks = forAllSystems (
         system:
         if system != "x86_64-linux" then
