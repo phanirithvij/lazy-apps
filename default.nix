@@ -7,6 +7,7 @@
       mkExeName = pkg: if pkg == null then null else pkg.meta.mainProgram or (lib.getName pkg);
 
       notify-send = lib.getExe pkgs.libnotify;
+      nom = lib.getExe pkgs.nix-output-monitor;
 
       makeGcDesktopItem =
         {
@@ -107,7 +108,9 @@
               );
               drvPath = builtins.unsafeDiscardStringContext pkg.drvPath;
 
-              debug = lib.optionalString (!debugLogs) "> /dev/null 2>&1";
+              nodebug = lib.optionalString (!debugLogs) "> /dev/null 2>&1";
+              debugNom = lib.optionalString (debugLogs) " --log-format internal-json 2>&1 | ${nom} --json)";
+              debugNompre = lib.optionalString (debugLogs) "(";
               desktopItems' = map (
                 desktopItem:
                 makeGcDesktopItem {
@@ -149,8 +152,8 @@
                     noteId=$(${notify-send} -t 0 -p "Realizing $app …")
                     trap "${notify-send} -r '$noteId' 'Canceled realization of $app'" EXIT
                     SECONDS=0
-                    nix-store --realise "$path"${debug} ||\
-                    nix-store --realise "$drv"${debug}
+                    ${debugNompre}nix-store --realise "$path"${nodebug}${debugNom} ||\
+                    ${debugNompre}nix-store --realise "$drv"${nodebug}${debugNom}
                     trap - EXIT
                     ${notify-send} -r "$noteId" "Realized $app in $SECONDS s"
                     exec $path "$@"
