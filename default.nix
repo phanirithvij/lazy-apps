@@ -6,7 +6,7 @@
 
       mkExeName = pkg: if pkg == null then null else pkg.meta.mainProgram or (lib.getName pkg);
 
-      lazy-app = pkgs.makeOverridable (
+      lazy-app = lib.makeOverridable (
         {
           pkg ? pkgs.hello,
           exe ? mkExeName pkg,
