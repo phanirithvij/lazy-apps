@@ -83,15 +83,28 @@ name of the package is used.
 
 One can imagine additional features and improvements:
 
-- [ ] Support for application icons. Bonus point if the application icon is
-      different before and after the wrapped package is realized.
-- [ ] Support multiple bin output packages for eg. yacreader
+- [ ] android 15 app archival | ios/macos offload
+  - can use one of those instead of lazy-apps
+  - a lazyDerivation already exists in nixpkgs
 - [ ] When realizing a package we could place it in a "lazy-apps" profile so
       that it won't get garbage collected.
-- [ ] Shell completions and manpages, all extra goodies
+- [ ] Support for application icons. Bonus point if the application icon is
+      different before and after the wrapped package is realized.
 - [ ] A tool that, given a package, can generate corresponding app attribute
       sets.
   - [ ] bins or exe
   - [ ] icons
   - [ ] desktopItems
   - [ ] actions (Desktop Action GC)
+  - [ ] shell completions and manpages, all extra goodies
+- [ ] support multiple bin output packages for eg. yacreader
+- [ ] nixos/home-manager/sysm modules
+  - [ ] nixos tests, hm-tests and nix-vm-tests
+  - [ ] examples, nigpkgs style
+- [ ] pkgsCross/pkgsStatic -> pkgsOffload
+  - [ ] defined via pkgs/top-level/variants.nix using `nixpkgsFun`
+  - [ ] investigate if it is possible to provide an overlay for hm/sysm/nixos modules
+- [ ] Investigate upstream nixpkgs feature
+  - Unlikely, because we can't build `pkg.bin` or `pkg.share` or whatever individually
+    - an external tool is required to yank $out/share out of the package
+  - similar limitation to trimpkgs where its not possible to do without some horrible hacks
