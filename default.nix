@@ -6,9 +6,6 @@
 
       mkExeName = pkg: if pkg == null then null else pkg.meta.mainProgram or (lib.getName pkg);
 
-      notify-send = lib.getExe pkgs.libnotify;
-      nom = lib.getExe pkgs.nix-output-monitor;
-
       makeGcDesktopItem =
         {
           exe,
@@ -16,16 +13,25 @@
           desktopItem,
           addGcDesktopAction,
           addLazyAppCategory,
+          notify ? true,
+          notifyPackage ? pkgs.libnotify,
         }:
         let
+          notify-send = lib.getExe notifyPackage;
           gcScript = pkgs.writeShellScriptBin "del-${exe}" ''
             app=${exe}
-            noteId=$(${notify-send} -t 0 -p "Deleting $app …")
-            trap "${notify-send} -r '$noteId' 'Failed to delete $app'" EXIT
-            SECONDS=0
+            ${lib.optionalString notify ''
+              noteId=$(${notify-send} -t 0 -p "Deleting $app …")
+              trap "${notify-send} -r '$noteId' 'Failed to delete $app'" EXIT
+              SECONDS=0
+            ''}
+
             space=$(nix-store --delete ${exePath} | cut -d',' -f2 | cut -d' ' -f2,3)
-            trap - EXIT
-            ${notify-send} -r "$noteId" "Deleted $app in ''${SECONDS}s. Freed up $space"
+
+            ${lib.optionalString notify ''
+              trap - EXIT
+              ${notify-send} -r "$noteId" "Deleted $app in ''${SECONDS}s. Freed up $space"
+            ''}
           '';
           item =
             if addGcDesktopAction || addLazyAppCategory then
@@ -74,31 +80,39 @@
         in
         item;
 
+      # TODO all these options feel like they should belong in the nixos/sysm/hm module
+      # in sysm not yet until desktop management support arrives https://github.com/numtide/system-manager/issues/186
       lazy-app = lib.makeOverridable (
         {
           debugLogs ? false,
+          useNom ? true,
+          nomPackage ? pkgs.nix-output-monitor,
+          notify ? true,
+          notifyPackage ? pkgs.libnotify,
           desktopItems ? [ ],
           addGcDesktopAction ? true,
           addLazyAppCategory ? true,
+          addLazyIndicatorIcon ? true, # TODO: dropbox corner download icon indicator (thinking imagemagick convert)
+          customIcons ? [ ], # TODO icon per desktop entry, should work with/without desktopItems attr (i.e. also .desktop files in share)
+          installCompletions ? false, # TODO: feels like it will be slow due to all this, so disabled by default (?)
+          registerMimeTypes ? true, # TODO: /share/mime buildEnv should suffice I guess?
           ...
-        }@overrideArgs:
+        }@overrideArgs: # NOTE: overrideArgs will not contain all the above named args
         let
-          _pkg = overrideArgs.pkg or pkgs.hello;
+          _pkg = overrideArgs.pkg or throw "pkg attribute is missing in lazy-app.override";
           pkg =
             if _pkg ? override then
               _pkg.override (
                 removeAttrs overrideArgs [
                   "pkg" # Hope we don't conflict with some nixpkgs override value `rg ' pkg (,|\?)'` in nixpkgs
-                  "exe"
-                  "debugLogs"
-                  "desktopItems"
-                  "addGcDesktopAction"
-                  "addLazyAppCategory"
+                  "exe" # Hope we don't conflict with some nixpkgs override value `rg ' exe (,|\?)'` in nixpkgs
                 ]
               )
             else
               _pkg;
           exe = overrideArgs.exe or (mkExeName pkg);
+          nom = lib.getExe nomPackage;
+          notify-send = lib.getExe notifyPackage;
         in
         pkgs.runCommand "lazy-${exe}"
           (
@@ -108,7 +122,7 @@
               );
               drvPath = builtins.unsafeDiscardStringContext pkg.drvPath;
 
-              nodebug = lib.optionalString (!debugLogs) "> /dev/null 2>&1";
+              noDebug = lib.optionalString (!debugLogs) "> /dev/null 2>&1";
               debugNom = lib.optionalString (debugLogs) " --log-format internal-json 2>&1 | ${nom} --json)";
               debugNompre = lib.optionalString (debugLogs) "(";
               desktopItems' = map (
@@ -120,6 +134,8 @@
                     desktopItem
                     addGcDesktopAction
                     addLazyAppCategory
+                    notify
+                    notifyPackage
                     ;
                 }
               ) desktopItems;
@@ -147,16 +163,23 @@
                 drv='${drvPath}'
 
                 if [[ -e $path ]]; then
-                    exec $path "$@"
+                  ${lib.optionalString notify ''${notify-send} -t 3 -p "Running $app"''}
+                  exec $path "$@"
                 else
+                  ${lib.optionalString notify ''
                     noteId=$(${notify-send} -t 0 -p "Realizing $app …")
                     trap "${notify-send} -r '$noteId' 'Canceled realization of $app'" EXIT
                     SECONDS=0
-                    ${debugNompre}nix-store --realise "$path"${nodebug}${debugNom} ||\
-                    ${debugNompre}nix-store --realise "$drv"${nodebug}${debugNom}
+                  ''}
+
+                  ${debugNompre}nix-store --realise "$path"${noDebug}${debugNom} ||\
+                  ${debugNompre}nix-store --realise "$drv"${noDebug}${debugNom}
+
+                  ${lib.optionalString notify ''
                     trap - EXIT
                     ${notify-send} -r "$noteId" "Realized $app in $SECONDS s"
-                    exec $path "$@"
+                  ''}
+                  exec $path "$@"
                 fi
               '';
               exeName = exe;
