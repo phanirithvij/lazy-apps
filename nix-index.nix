@@ -1,0 +1,58 @@
+{
+  lib,
+  stdenv,
+  fetchurl,
+  nix-index,
+  desktop-file-utils,
+}:
+
+let
+  nix-index-database = fetchurl {
+    name = "nix-index-database";
+    url = "https://github.com/nix-community/nix-index-database/releases/download/2025-12-09-080420/index-x86_64-linux";
+    hash = "sha256-7VFbVGbkwO4zLhNYrJTORSW8vTUzkTaYvykRgr59ics=";
+  };
+in
+
+stdenv.mkDerivation {
+  name = "karren.lazy-desktop";
+  buildInputs = [
+    nix-index
+    desktop-file-utils
+  ];
+  dontUnpack = true;
+  dontBuild = true;
+  installPhase = ''
+    mkdir -p $out/share/applications
+    ln -s ${nix-index-database} files
+    nix-locate \
+      --db . \
+      --minimal \
+      --regex \
+      '/share/applications/.*\.desktop$' \
+      | while read -r package
+      do
+        cat > $out/share/applications/"$package.desktop" << EOF
+    [Desktop Entry]
+    Version=1.0
+    Name="Lazy: $package"
+    Type=Application
+    Exec=nix run "nixpkgs#$package"
+    Terminal=false
+    Categories=Utility;
+    Comment="Run the package $package using nix run"
+    EOF
+        desktop-file-validate $out/share/applications/"$package.desktop"
+      done
+  '';
+  meta = {
+    deskscription = "A package with desktop files for all packages in the nix-index database";
+    longDescription = ''
+      A package with desktop files for all packages in the nix-index database.
+
+      When a .desktop is executed it will run the package using `nix run nixpkgs#package`.
+    '';
+    maintainers = [ lib.maintainers.dominicegginton ];
+    platforms = [ "x86_64-linux" ];
+  };
+}
