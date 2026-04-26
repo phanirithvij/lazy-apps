@@ -8,7 +8,7 @@
 
       lazy-app = lib.makeOverridable (
         {
-          pkg ? throw "pkg attribute is missing in lazy-app.override",
+          pkg ? pkgs.hello,
           exe ? mkExeName pkg,
           debugLogs ? false,
           useNom ? true,
@@ -64,7 +64,6 @@
               pkgs.crudini
             ];
 
-            # Optimized: process desktop items in the main derivation builder
             passDesktopItems = desktopItems;
 
             meta.mainProgram = exe;
@@ -112,7 +111,6 @@
             mkdir -p $out/share/applications
             for item in $passDesktopItems; do
               filename=$(basename "$item")
-              # strip hash if any from nix store path basename
               clean_name=$(echo "$filename" | sed -E 's/^[a-z0-9]{32}-//')
               outfile="$out/share/applications/$clean_name"
               cp --no-preserve=all "$item" "$outfile"
