@@ -198,6 +198,21 @@
     {
       inherit lazy-app;
 
+      # Helper to check for binary collisions in a set of lazy apps
+      checkCollisions =
+        apps:
+        let
+          # Map each app to its main program name
+          getExe = name: app: app.meta.mainProgram or name;
+          exes = lib.mapAttrsToList getExe apps;
+          # Find duplicates
+          duplicates = lib.filter (exe: (lib.count (x: x == exe) exes) > 1) (lib.unique exes);
+        in
+        if duplicates == [ ] then
+          apps
+        else
+          throw "Lazy Apps Collision detected! Multiple apps provide the following binaries: ${lib.concatStringsSep ", " duplicates}";
+
       mkLazyAppsBundle =
         {
           name ? "lazy-apps-bundle",
