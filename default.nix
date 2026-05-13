@@ -2,7 +2,7 @@
   mkLazyApps =
     { pkgs }:
     let
-      inherit (pkgs) lib;
+      inherit (pkgs) lib symlinkJoin;
 
       mkExeName = pkg: if pkg == null then null else pkg.meta.mainProgram or (lib.getName pkg);
 
@@ -20,6 +20,9 @@
           addLazyAppCategory ? true,
           addLazyIndicatorIcon ? true,
           copyIcons ? true,
+          copyCompletions ? true,
+          copyManpages ? true,
+          copyFonts ? false,
           customIcons ? [ ],
           installCompletions ? false,
           registerMimeTypes ? true,
@@ -150,12 +153,49 @@
               fi
             ''}
 
+            ${lib.optionalString copyCompletions ''
+              for shell in bash fish zsh; do
+                if [[ -d "${pkg}/share/$shell" ]]; then
+                  mkdir -p "$out/share/$shell"
+                  cp -rL --no-preserve=all "${pkg}/share/$shell"/* "$out/share/$shell/"
+                fi
+              done
+            ''}
+
+            ${lib.optionalString copyManpages ''
+              if [[ -d "${pkg}/share/man" ]]; then
+                mkdir -p "$out/share/man"
+                cp -rL --no-preserve=all "${pkg}/share/man"/* "$out/share/man/"
+              fi
+            ''}
+
+            ${lib.optionalString copyFonts ''
+              if [[ -d "${pkg}/share/fonts" ]]; then
+                mkdir -p "$out/share/fonts"
+                cp -rL --no-preserve=all "${pkg}/share/fonts"/* "$out/share/fonts/"
+              fi
+            ''}
+
             runHook postInstall
           ''
       ) { };
     in
     {
       inherit lazy-app;
+
+      mkLazyAppsBundle =
+        {
+          name ? "lazy-apps-bundle",
+          paths,
+          ...
+        }:
+        symlinkJoin {
+          inherit name paths;
+          postBuild = ''
+            # Ensure the structure is correct for a system/user profile
+            # Most things are already handled by symlinkJoin
+          '';
+        };
 
       examples = pkgs.symlinkJoin {
         name = "lazy-apps-examples";
