@@ -13,7 +13,14 @@ let
   isNixOSEnabled = config ? osConfig && config.osConfig.programs.lazy-apps.enable or false;
 in
 {
-  options.programs.lazy-apps.enable = lib.mkEnableOption "Enable Lazy Apps desktop integration";
+  options.programs.lazy-apps = {
+    enable = lib.mkEnableOption "Enable Lazy Apps desktop integration";
+    gcRoot = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Create GC roots for realized lazy apps to prevent them from being garbage collected.";
+    };
+  };
 
   config = lib.mkIf cfg.enable {
     xdg.configFile."menus/applications-merged/lazy-apps.menu" = lib.mkIf (!isNixOSEnabled) {
