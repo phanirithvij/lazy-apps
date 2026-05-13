@@ -19,7 +19,10 @@ in
             # If the derivation has a main program, then create a corresponding
             # lazy application.
             if (value.meta or { }) ? mainProgram then
-              lazy-app.override { pkg = value; }
+              lazy-app.override {
+                pkg = value;
+                gcRoot = config.programs.lazy-apps.gcRoot or false;
+              }
             else
               throw "This is not a valid lazy derivation: ${name}"
           else

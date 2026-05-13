@@ -26,6 +26,7 @@
           customIcons ? [ ],
           installCompletions ? false,
           registerMimeTypes ? true,
+          gcRoot ? false,
           ...
         }@args:
         let
@@ -97,6 +98,13 @@
 
                 ${debugNompre}nix-store --realise "$path"${noDebug}${debugNom} ||\
                 ${debugNompre}nix-store --realise "$drv"${noDebug}${debugNom}
+
+                ${lib.optionalString gcRoot ''
+                  # Create GC root to prevent garbage collection
+                  GC_ROOT_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/lazy-apps/gcroots"
+                  mkdir -p "$GC_ROOT_DIR"
+                  nix-store --add-root "$GC_ROOT_DIR/${exe}" --indirect -r "$path" > /dev/null 2>&1 || true
+                ''}
 
                 ${lib.optionalString notify ''
                   trap - EXIT
