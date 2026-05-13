@@ -22,6 +22,10 @@ incompatible ways.
 Lazy Apps is currently made available as a Nix Flake or as a plain old
 `default.nix`.
 
+Note: The modules for NixOS and Home Manager are designed to be "aware" of each other. If you are using Home Manager as a NixOS module, you can enable `programs.lazy-apps.enable` in both without causing duplicate menu entries; the Home Manager module will automatically defer to the system-level configuration if detected via `osConfig`.
+
+Warning for Standalone Users: If you use Home Manager in "standalone" mode (not as a NixOS module) on a NixOS system and enable it in both places, the modules cannot see each other. In this specific case, you must manually ensure it is only enabled in one place to avoid duplicate menu entries.
+
 Add
 
 ```nix

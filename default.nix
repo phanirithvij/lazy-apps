@@ -19,6 +19,7 @@
           addGcDesktopAction ? true,
           addLazyAppCategory ? true,
           addLazyIndicatorIcon ? true,
+          copyIcons ? true,
           customIcons ? [ ],
           installCompletions ? false,
           registerMimeTypes ? true,
@@ -137,6 +138,17 @@
                 fi
               ''}
             done
+
+            ${lib.optionalString copyIcons ''
+              if [[ -d "${pkg}/share/icons" ]]; then
+                mkdir -p "$out/share/icons"
+                cp -rL --no-preserve=all "${pkg}/share/icons"/* "$out/share/icons/"
+              fi
+              if [[ -d "${pkg}/share/pixmaps" ]]; then
+                mkdir -p "$out/share/pixmaps"
+                cp -rL --no-preserve=all "${pkg}/share/pixmaps"/* "$out/share/pixmaps/"
+              fi
+            ''}
 
             runHook postInstall
           ''
