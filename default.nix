@@ -128,10 +128,8 @@
             runHook preInstall
             install -Dm755 "$scriptPath" "$out/bin/$exeName"
 
-            echo "DEBUG: passDesktopItems = '$passDesktopItems'"
             mkdir -p $out/share/applications
             for item in $passDesktopItems; do
-              echo "DEBUG: Processing item = '$item'"
               filename=$(basename "$item")
               clean_name=$(echo "$filename" | sed -E 's/^[a-z0-9]{32}-//')
               outfile="$out/share/applications/$clean_name"
@@ -201,7 +199,7 @@
             # We specifically target the share directory because the wrapper script
             # in bin/ needs to keep its discarded store path for realization to work.
             if [[ -d "$out/share" ]]; then
-              remove-references-to -t ${pkg} "$out/share"
+              find "$out/share" -type f -exec remove-references-to -t ${pkg} {} +
             fi
 
             runHook postInstall
