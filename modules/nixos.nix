@@ -6,16 +6,12 @@
 }:
 let
   cfg = config.programs.lazy-apps;
-  common = import ./common.nix;
-  dirpkg =
-    pkgs.runCommand "lazy-apps-directory" { }
-      #bash
-      ''
-        mkdir -p $out/share/desktop-directories
-        cat <<EOF >$out/share/desktop-directories/lazy-apps.directory
-        ${common.directory}
-        EOF
-      '';
+  lib' = (import ./..).mkLazyApps { inherit pkgs; };
+  
+  bundle = lib'.mkLazyAppsBundle {
+    name = "lazy-apps-system-bundle";
+    paths = cfg.applications;
+  };
 in
 {
   options.programs.lazy-apps = {
@@ -25,9 +21,14 @@ in
       default = false;
       description = "Create GC roots for realized lazy apps to prevent them from being garbage collected.";
     };
+    applications = lib.mkOption {
+      type = with lib.types; oneOf [ (attrsOf package) (listOf package) ];
+      default = [ ];
+      description = "List or attribute set of lazy applications to include in the system bundle.";
+    };
   };
+  
   config = lib.mkIf cfg.enable {
-    environment.etc."xdg/menus/applications-merged/lazy-apps.menu".text = common.menu;
-    environment.systemPackages = [ dirpkg ];
+    environment.systemPackages = [ bundle ];
   };
 }

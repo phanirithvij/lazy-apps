@@ -202,9 +202,10 @@
       checkCollisions =
         apps:
         let
+          appsList = if lib.isAttrs apps then lib.attrValues apps else apps;
           # Map each app to its main program name
-          getExe = name: app: app.meta.mainProgram or name;
-          exes = lib.mapAttrsToList getExe apps;
+          getExe = app: app.meta.mainProgram or (lib.getName app);
+          exes = map getExe appsList;
           # Find duplicates
           duplicates = lib.filter (exe: (lib.count (x: x == exe) exes) > 1) (lib.unique exes);
         in
@@ -219,11 +220,24 @@
           paths,
           ...
         }:
+        let
+          common = import ./modules/common.nix;
+          pathsList = if lib.isAttrs paths then lib.attrValues paths else paths;
+        in
         symlinkJoin {
-          inherit name paths;
+          inherit name;
+          paths = pathsList;
           postBuild = ''
-            # Ensure the structure is correct for a system/user profile
-            # Most things are already handled by symlinkJoin
+            # Install menu and directory files directly into the bundle
+            mkdir -p $out/etc/xdg/menus/applications-merged
+            mkdir -p $out/share/desktop-directories
+            
+            cat <<'EOF' > $out/etc/xdg/menus/applications-merged/lazy-apps.menu
+${common.menu}
+EOF
+            cat <<'EOF' > $out/share/desktop-directories/lazy-apps.directory
+${common.directory}
+EOF
           '';
         };
 

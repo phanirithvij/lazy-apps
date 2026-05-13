@@ -1,16 +1,17 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 let
   cfg = config.programs.lazy-apps;
-  common = import ./common.nix;
+  lib' = (import ./..).mkLazyApps { inherit pkgs; };
 
-  # If this HM configuration is being used as a NixOS module, check if the NixOS
-  # counterpart is already enabled. If so, we should skip creating the menu
-  # files to avoid duplicates in XDG menu merging.
-  isNixOSEnabled = config ? osConfig && config.osConfig.programs.lazy-apps.enable or false;
+  bundle = lib'.mkLazyAppsBundle {
+    name = "lazy-apps-user-bundle";
+    paths = cfg.applications;
+  };
 in
 {
   options.programs.lazy-apps = {
@@ -20,14 +21,14 @@ in
       default = false;
       description = "Create GC roots for realized lazy apps to prevent them from being garbage collected.";
     };
+    applications = lib.mkOption {
+      type = with lib.types; oneOf [ (attrsOf package) (listOf package) ];
+      default = [ ];
+      description = "List or attribute set of lazy applications to include in the user bundle.";
+    };
   };
 
   config = lib.mkIf cfg.enable {
-    xdg.configFile."menus/applications-merged/lazy-apps.menu" = lib.mkIf (!isNixOSEnabled) {
-      text = common.menu;
-    };
-    xdg.dataFile."desktop-directories/lazy-apps.directory" = lib.mkIf (!isNixOSEnabled) {
-      text = common.directory;
-    };
+    home.packages = [ bundle ];
   };
 }
