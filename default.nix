@@ -33,6 +33,10 @@
           nom = lib.getExe nomPackage;
           notify-send = lib.getExe notifyPackage;
 
+          # Discard context to avoid making the whole package a runtime dependency
+          # of the lazy-wrapper derivation itself.
+          pkgPath = builtins.unsafeDiscardStringContext "${pkg}";
+
           exePath = builtins.unsafeDiscardStringContext (
             if exe != null then lib.getExe' pkg exe else lib.getExe pkg
           );
@@ -67,6 +71,7 @@
               pkgs.copyDesktopItems
               pkgs.gnused
               pkgs.crudini
+              pkgs.removeReferencesTo
             ];
 
             passDesktopItems = desktopItems;
@@ -83,8 +88,11 @@
               set -euo pipefail
 
               app='${exe}'
-              path='${exePath}'
-              drv='${drvPath}'
+              # We break the store path string so the Nix runtime dependency scanner
+              # doesn't see it. This prevents the whole package closure from being
+              # pulled into the system profile, which is the whole point of lazy-apps.
+              path='/nix/store'/'${lib.removePrefix "/nix/store/" exePath}'
+              drv='/nix/store'/'${lib.removePrefix "/nix/store/" drvPath}'
 
               if [[ -e $path ]]; then
                 ${lib.optionalString notify ''${notify-send} -t 3 -p "Running $app"''}
@@ -150,39 +158,49 @@
               ''}
             done
 
+            # Assets copying (Icons, Completions, Manpages, Fonts)
+            # We use the discarded pkgPath to avoid eval-time dependency tracking
+            # and then use remove-references-to to strip runtime dependencies.
             ${lib.optionalString copyIcons ''
-              if [[ -d "${pkg}/share/icons" ]]; then
+              if [[ -d "${pkgPath}/share/icons" ]]; then
                 mkdir -p "$out/share/icons"
-                cp -rL --no-preserve=all "${pkg}/share/icons"/* "$out/share/icons/"
+                cp -rL --no-preserve=all "${pkgPath}/share/icons"/* "$out/share/icons/"
               fi
-              if [[ -d "${pkg}/share/pixmaps" ]]; then
+              if [[ -d "${pkgPath}/share/pixmaps" ]]; then
                 mkdir -p "$out/share/pixmaps"
-                cp -rL --no-preserve=all "${pkg}/share/pixmaps"/* "$out/share/pixmaps/"
+                cp -rL --no-preserve=all "${pkgPath}/share/pixmaps"/* "$out/share/pixmaps/"
               fi
             ''}
 
             ${lib.optionalString copyCompletions ''
               for shell in bash fish zsh; do
-                if [[ -d "${pkg}/share/$shell" ]]; then
+                if [[ -d "${pkgPath}/share/$shell" ]]; then
                   mkdir -p "$out/share/$shell"
-                  cp -rL --no-preserve=all "${pkg}/share/$shell"/* "$out/share/$shell/"
+                  cp -rL --no-preserve=all "${pkgPath}/share/$shell"/* "$out/share/$shell/"
                 fi
               done
             ''}
 
             ${lib.optionalString copyManpages ''
-              if [[ -d "${pkg}/share/man" ]]; then
+              if [[ -d "${pkgPath}/share/man" ]]; then
                 mkdir -p "$out/share/man"
-                cp -rL --no-preserve=all "${pkg}/share/man"/* "$out/share/man/"
+                cp -rL --no-preserve=all "${pkgPath}/share/man"/* "$out/share/man/"
               fi
             ''}
 
             ${lib.optionalString copyFonts ''
-              if [[ -d "${pkg}/share/fonts" ]]; then
+              if [[ -d "${pkgPath}/share/fonts" ]]; then
                 mkdir -p "$out/share/fonts"
-                cp -rL --no-preserve=all "${pkg}/share/fonts"/* "$out/share/fonts/"
+                cp -rL --no-preserve=all "${pkgPath}/share/fonts"/* "$out/share/fonts/"
               fi
             ''}
+
+            # Scrub references to the package from the assets to avoid closure bloat.
+            # We specifically target the share directory because the wrapper script
+            # in bin/ needs to keep its discarded store path for realization to work.
+            if [[ -d "$out/share" ]]; then
+              remove-references-to -t ${pkg} "$out/share"
+            fi
 
             runHook postInstall
           ''
