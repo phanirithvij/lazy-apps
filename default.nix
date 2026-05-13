@@ -27,6 +27,7 @@
           installCompletions ? false,
           registerMimeTypes ? true,
           gcRoot ? false,
+          autoPassDesktopItems ? true,
           ...
         }@args:
         let
@@ -73,7 +74,20 @@
               pkgs.crudini
             ];
 
-            passDesktopItems = desktopItems;
+            passDesktopItems =
+              if desktopItems == [ ] && autoPassDesktopItems then
+                let
+                  # Try to find .desktop files in the package
+                  pkgAppsDir = "${pkgPath}/share/applications";
+                in
+                if builtins.pathExists pkgAppsDir then
+                  map (n: "${pkgAppsDir}/${n}") (
+                    builtins.attrNames (builtins.readDir pkgAppsDir)
+                  )
+                else
+                  [ ]
+              else
+                desktopItems;
 
             meta.mainProgram = exe;
             passthru = (pkg.passthru or { }) // {
@@ -189,6 +203,13 @@
                 mkdir -p "$out/share/fonts"
                 cp -rL --no-preserve=all "${pkgPath}/share/fonts"/* "$out/share/fonts/"
               fi
+            ''}
+
+            ${lib.optionalString (customIcons != [ ]) ''
+              mkdir -p "$out/share/icons"
+              for icon in ${lib.concatStringsSep " " (map (i: "\"${i}\"") customIcons)}; do
+                cp -rL --no-preserve=all "$icon" "$out/share/icons/"
+              done
             ''}
 
             runHook postInstall
