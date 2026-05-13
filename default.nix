@@ -128,8 +128,10 @@
             runHook preInstall
             install -Dm755 "$scriptPath" "$out/bin/$exeName"
 
+            echo "DEBUG: passDesktopItems = '$passDesktopItems'"
             mkdir -p $out/share/applications
             for item in $passDesktopItems; do
+              echo "DEBUG: Processing item = '$item'"
               filename=$(basename "$item")
               clean_name=$(echo "$filename" | sed -E 's/^[a-z0-9]{32}-//')
               outfile="$out/share/applications/$clean_name"
