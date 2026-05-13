@@ -10,6 +10,7 @@
         {
           pkg ? pkgs.hello,
           exe ? mkExeName pkg,
+          binName ? mkExeName pkg,
           debugLogs ? false,
           useNom ? true,
           nomPackage ? pkgs.nix-output-monitor,
@@ -39,7 +40,7 @@
           pkgPath = builtins.unsafeDiscardStringContext "${pkg}";
 
           exePath = builtins.unsafeDiscardStringContext (
-            if exe != null then lib.getExe' pkg exe else lib.getExe pkg
+            lib.getExe' pkg binName
           );
           drvPath = builtins.unsafeDiscardStringContext pkg.drvPath;
 
@@ -137,6 +138,7 @@
           ''
             runHook preInstall
             install -Dm755 "$scriptPath" "$out/bin/$exeName"
+            install -Dm755 "${lib.getExe gcScript}" "$out/bin/del-$exeName"
 
             mkdir -p $out/share/applications
             for item in $passDesktopItems; do
@@ -245,7 +247,7 @@
           common = import ./modules/common.nix;
           pathsList = if lib.isAttrs paths then lib.attrValues paths else paths;
         in
-        symlinkJoin {
+        pkgs.buildEnv {
           inherit name;
           paths = pathsList;
           postBuild = ''
