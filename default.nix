@@ -71,7 +71,6 @@
               pkgs.copyDesktopItems
               pkgs.gnused
               pkgs.crudini
-              pkgs.removeReferencesTo
             ];
 
             passDesktopItems = desktopItems;
@@ -88,11 +87,8 @@
               set -euo pipefail
 
               app='${exe}'
-              # We break the store path string so the Nix runtime dependency scanner
-              # doesn't see it. This prevents the whole package closure from being
-              # pulled into the system profile, which is the whole point of lazy-apps.
-              path='/nix/store'/'${lib.removePrefix "/nix/store/" exePath}'
-              drv='/nix/store'/'${lib.removePrefix "/nix/store/" drvPath}'
+              path='${exePath}'
+              drv='${drvPath}'
 
               if [[ -e $path ]]; then
                 ${lib.optionalString notify ''${notify-send} -t 3 -p "Running $app"''}
@@ -194,13 +190,6 @@
                 cp -rL --no-preserve=all "${pkgPath}/share/fonts"/* "$out/share/fonts/"
               fi
             ''}
-
-            # Scrub references to the package from the assets to avoid closure bloat.
-            # We specifically target the share directory because the wrapper script
-            # in bin/ needs to keep its discarded store path for realization to work.
-            if [[ -d "$out/share" ]]; then
-              find "$out/share" -type f -exec remove-references-to -t ${pkg} {} +
-            fi
 
             runHook postInstall
           ''
